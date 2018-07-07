@@ -327,7 +327,9 @@ export default class App extends Component<Props> {
         {/* {this._renderButton("PAUSE", () => {this._pause()} )} */}
         {this._renderPauseButton(() => { this.state.paused ? this._resume() : this._pause() })}
         <Text style={styles.progressText}>{this.state.currentTime}s</Text>
-        <Image source={source} key={new Date()} />
+        <Image source={source} 
+        key={new Date()} 
+        />
         <LongPressGestureHandler
           enabled
           // maxDist={-1}
