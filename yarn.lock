@@ -4131,6 +4131,10 @@ react-native-gesture-handler@^1.0.5:
     invariant "^2.2.2"
     prop-types "^15.5.10"
 
+react-native-image-capinsets@^0.4.0:
+  version "0.4.0"
+  resolved "http://registry.npm.taobao.org/react-native-image-capinsets/download/react-native-image-capinsets-0.4.0.tgz#919f4ec15e573223f2b79660253c6deac69366ab"
+
 react-native-sound@^0.10.9:
   version "0.10.9"
   resolved "http://registry.npm.taobao.org/react-native-sound/download/react-native-sound-0.10.9.tgz#6b00b0f4afd017cde09fbb9d171df1b5d5b851a8"

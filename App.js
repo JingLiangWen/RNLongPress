@@ -5,12 +5,23 @@
  * @format
  * @flow
  */
+import React, { Component, PureComponent } from 'react';
 
-import React, { Component } from 'react';
+import LongPressButton from './LongPressButton';
+import {
+  PanGestureHandler,
+  LongPressGestureHandler,
+  ScrollView,
+  State,
+  TapGestureHandler,
+  BaseButton,
+
+} from 'react-native-gesture-handler';
 import Sound from 'react-native-sound';
 import { AudioRecorder, AudioUtils } from 'react-native-audio';
 
 import {
+  Dimensions,
   AppRegistry,
   StyleSheet,
   Text,
@@ -19,11 +30,19 @@ import {
   Platform,
   PermissionsAndroid,
   Alert,
-  Image
+  Image,
+  TouchableOpacity
 } from 'react-native';
-// import PanResponderExample from './PanResponderExample';
-import { State, LongPressGestureHandler } from 'react-native-gesture-handler';
 
+
+const { height: DeviceHeight, width: DeviceWidth } = Dimensions.get('window')
+
+
+const GESTURE_STATE = {
+  active: 'active',
+  end: 'end',
+  cancel: 'cancel'
+}
 
 const instructions = Platform.select({
   ios: 'Press Cmd+R to reload,\n' + 'Cmd+D or shake for dev menu',
@@ -33,9 +52,50 @@ const instructions = Platform.select({
 });
 
 type Props = {};
+
+class ModalCenterView extends PureComponent {
+  render() {
+    const width = 128
+    const height = 128
+    return (<View style={{
+      borderRadius: 5,
+      width,
+      height,
+      backgroundColor: "rgba(0, 0, 0, 0.2)",
+      position: 'absolute',
+      top: DeviceHeight / 2 - height / 2,
+      left: DeviceWidth / 2 - width / 2,
+      justifyContent: 'center',
+      alignItems: 'center'
+    }}>
+      {this.props.children}
+    </View>)
+  }
+}
+
+
+// const ModalCenterView = ({ children }) => {
+//   const width = 128
+//   const height = 128
+//   return (<View style={{
+//     borderRadius: 5,
+//     width,
+//     height,
+//     backgroundColor: "rgba(0, 0, 0, 0.2)",
+//     position: 'absolute',
+//     top: DeviceHeight / 2 - height / 2,
+//     left: DeviceWidth / 2 - width / 2,
+//     justifyContent: 'center',
+//     alignItems: 'center'
+//   }}>
+//     {children}
+//   </View>)
+// }
+
 export default class App extends Component<Props> {
 
   state = {
+    bg: 'green',
     title: '',
 
     currentTime: 0.0,
@@ -45,6 +105,7 @@ export default class App extends Component<Props> {
     finished: false,
     audioPath: AudioUtils.DocumentDirectoryPath + '/test.aac',
     hasPermission: undefined,
+
     source1: require('./images/ic_record_ripple_1.png'),
     source2: require('./images/ic_record_ripple_2.png'),
     source3: require('./images/ic_record_ripple_3.png'),
@@ -55,6 +116,10 @@ export default class App extends Component<Props> {
     source8: require('./images/ic_record_ripple_8.png'),
     source9: require('./images/ic_record_ripple_9.png'),
     source: require('./images/ic_record_ripple_1.png'),
+
+    // recordState:'', // 0-录音结束 0-正在录音 1-取消录音 2-时间过短 
+    gestureState: GESTURE_STATE.end,// active , end , cancel
+
   }
 
   prepareRecordingPath(audioPath) {
@@ -69,6 +134,40 @@ export default class App extends Component<Props> {
     });
   }
 
+  isOutSide = ({ locationY }) => {
+    if (Platform.OS === 'ios') {
+      return locationY < 0
+    } else {
+      console.log(locationY > 60)
+      return locationY > 60
+    }
+
+  }
+
+  componentWillMount() {
+    this._gestureHandlers = {
+      onStartShouldSetResponder: () => true,
+      onMoveShouldSetResponder: () => true,
+      onResponderGrant: () => {
+        this.setState({ ...this.state, title: '正在录音', gestureState: GESTURE_STATE.active })
+        this.setState({ bg: 'red' })
+      },
+      onResponderMove: ({ nativeEvent }) => {
+        console.log(nativeEvent)
+        const { locationY } = nativeEvent
+        if (!this.isOutSide(nativeEvent)) {
+          this.setState({ ...this.state, title: '正在录音', gestureState: GESTURE_STATE.active })
+        } else {
+          this.setState({ ...this.state, title: '可以取消录音', gestureState: GESTURE_STATE.cancel })
+        }
+      },
+      onResponderRelease: () => {
+        this.setState({ bg: 'white' })
+        this.setState({ ...this.state, title: '录音结束', gestureState: GESTURE_STATE.end })
+      }
+    }
+  }
+
   componentDidMount() {
     this._checkPermission().then((hasPermission) => {
       this.setState({ hasPermission });
@@ -81,44 +180,25 @@ export default class App extends Component<Props> {
       this.prepareRecordingPath(this.state.audioPath);
 
       AudioRecorder.onProgress = (data) => {
-        console.log('声量：' + data.currentMetering)
         const { currentMetering } = data
         if (0 < currentMetering <= 0.06) {
-          console.log('1')
-          const source = require('./images/ic_record_ripple_1.png')
           this.setState({ ...this.setState, source: this.state.source1 })
         } else if (0.06 < currentMetering <= 0.13) {
-          console.log('2')
-          const source = require('./images/ic_record_ripple_2.png')
           this.setState({ ...this.setState, source: this.state.source2 })
         } else if (0.13 < currentMetering <= 0.20) {
-          console.log('3')
-          const source = require('./images/ic_record_ripple_3.png')
           this.setState({ ...this.setState, source: this.state.source3 })
         } else if (0.20 < currentMetering <= 0.27) {
-          console.log('4')
-          const source = require('./images/ic_record_ripple_4.png')
           this.setState({ ...this.setState, source: this.state.source4 })
         } else if (0.27 < currentMetering <= 0.34) {
-          console.log('5')
-          const source = require('./images/ic_record_ripple_5.png')
           this.setState({ ...this.setState, source: this.state.source5 })
         } else if (0.34 < currentMetering <= 0.41) {
-          console.log('6')
-          const source = require('./images/ic_record_ripple_6.png')
           this.setState({ ...this.setState, source: this.state.source6 })
         } else if (0.41 < currentMetering <= 0.48) {
-          console.log('7')
-          const source = require('./images/ic_record_ripple_7.png')
           this.setState({ ...this.setState, source: this.state.source7 })
         } else if (0.48 < currentMetering <= 0.55) {
-          console.log('8')
-          const source = require('./images/ic_record_ripple_8.png')
           this.setState({ ...this.setState, source: this.state.source8 })
         } else
         /*if (0.55 < currentMetering <= 0.62)*/ {
-          console.log('9')
-          const source = require('./images/ic_record_ripple_9.png')
           this.setState({ ...this.setState, source: this.state.source9 })
         }
         // else if (0.62 < currentMetering <= 0.69) {
@@ -291,30 +371,90 @@ export default class App extends Component<Props> {
   }
 
   _handleStateChange = ({ nativeEvent }) => {
-    console.log(nativeEvent)
     if (nativeEvent.state === State.ACTIVE) {
-      console.log('开始录音')
-      this.setState({ title: '正在录音' })
-      // start
-
-      this._record()
-
-
+      console.log('手势开始')
+      // console.log('开始录音')
+      this.setState({ ...this.state, title: '正在录音', gestureState: GESTURE_STATE.active })
+      // this._record()
     }
 
     if (nativeEvent.state === State.END) {
-      console.log('结束录音')
-      this.setState({ title: '录音结束' })
-
-
-      this._stop()
-      // end
+      // console.log('结束录音')
+      console.log('手势结束')
+      this.setState({ ...this.state, title: '录音结束', gestureState: GESTURE_STATE.end })
+      // this._stop()
     }
   };
 
+
+  getTextBGColor = () => {
+    const { gestureState } = this.state
+    if (gestureState === GESTURE_STATE.cancel) {
+      return 'rgb(177, 0, 3)'
+    } else {
+      return 'transparent'
+    }
+  }
+
+  getText = () => {
+    const { gestureState } = this.state
+    if (gestureState === GESTURE_STATE.cancel) {
+      return '松开手指，取消发送'
+    } else {
+      return '手指上滑，取消发送'
+    }
+  }
+
+  getContentView = () => {
+    if (this.state.gestureState === GESTURE_STATE.active) {
+      const { source } = this.state
+      return (<View
+        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+        <Image source={require('./images/ic_record.png')} />
+        <View style={{ width: 4 }} />
+        <Image
+          source={source}
+        />
+      </View>)
+    }
+
+    if (this.state.gestureState === GESTURE_STATE.cancel) {
+      // console.log('取消....')
+      return (<View
+        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+        <Image source={require('./images/ic_release_to_cancel.png')}
+        />
+      </View>)
+    }
+  }
+
+  renderModal = () => {
+    if (this.state.gestureState === GESTURE_STATE.end) {
+      return
+    }
+
+    return (<ModalCenterView>
+      <View style={{ flex: 1 }}>
+        {this.getContentView()}
+        <Text style={{
+          color: 'white',
+          padding: 4,
+          margin: 4,
+          marginBottom: 8,
+          fontSize: 12,
+          backgroundColor: this.getTextBGColor()
+        }}>{this.getText()}</Text>
+      </View>
+
+    </ModalCenterView>)
+
+  }
+
   render() {
     const { source } = this.state
-    console.log('source:' + source)
+    const panRef = React.createRef();
+    const longPressRef = React.createRef();
+
     return (
       <View style={styles.container}>
         <Text style={styles.welcome}>Welcome to React Native!</Text>
@@ -327,29 +467,90 @@ export default class App extends Component<Props> {
         {/* {this._renderButton("PAUSE", () => {this._pause()} )} */}
         {this._renderPauseButton(() => { this.state.paused ? this._resume() : this._pause() })}
         <Text style={styles.progressText}>{this.state.currentTime}s</Text>
-        <Image source={source} 
-        key={new Date()} 
-        />
-        <LongPressGestureHandler
+        {this.renderModal()}
+
+
+        {/* <PanGestureHandler
+          // waitFor={longPressRef}
+          ref={panRef}
+          simultaneousHandlers={longPressRef}
+          minDeltaX={0}
+          minDeltaY={0}
           enabled
-          // maxDist={-1}
-          minDurationMs={100}
+          maxDist={0}
+          // minDurationMs={10}
           onHandlerStateChange={this._handleStateChange}
           onGestureEvent={({ nativeEvent }) => {
-            // console.log(nativeEvent)
+            console.log('onGestureEvent')
             const { y } = nativeEvent
             if (y >= 0) {
-              this.setState({ title: '正在录音' })
+              this.setState({ ...this.state, title: '正在录音', gestureState: GESTURE_STATE.active })
             } else {
-              this.setState({ title: '可以取消录音' })
-              // this._stop()
+              this.setState({ ...this.state, title: '可以取消录音', gestureState: GESTURE_STATE.cancel })
             }
           }}
         >
-          <View style={{ height: 60, backgroundColor: 'red', marginTop: 'auto' }}></View>
+          <LongPressGestureHandler
+            enabled
+            ref={longPressRef}
+            simultaneousHandlers={panRef}
+            minDurationMs={0}
+            maxDist={-1}
+            onHandlerStateChange={({ nativeEvent }) => {
+              if (nativeEvent.state === State.ACTIVE) {
+                console.log('点击开始')
+                console.log('开始录音')
+                this.setState({ ...this.state, title: '正在录音', gestureState: GESTURE_STATE.active })
+                // this._record()
+              }
+
+              if (nativeEvent.state === State.END) {
+                console.log('点击结束')
+              }
+
+              if (nativeEvent.state === State.CANCELLED){
+                console.log('点击取消')
+              }
+            }}>
+            <View style={{ height: 60, backgroundColor: 'blue' }}></View>
+          </LongPressGestureHandler>
+
+        </PanGestureHandler> */}
+
+        {/**ios没问题*/}
+        <LongPressGestureHandler
+          enabled
+          minDurationMs={0}
+          maxDist={-1}
+          onHandlerStateChange={this._handleStateChange}
+          onGestureEvent={({ nativeEvent }) => {
+            const { y } = nativeEvent
+            if (y >= 0) {
+              this.setState({ ...this.state, title: '正在录音', gestureState: GESTURE_STATE.active })
+            } else {
+              this.setState({ ...this.state, title: '可以取消录音', gestureState: GESTURE_STATE.cancel })
+            }
+          }}
+        >
+          <View style={{ height: 60, backgroundColor: 'blue' }}></View>
         </LongPressGestureHandler>
 
-      </View>
+        <View style={{ marginTop: 'auto' }}>
+          <View
+            style={{
+              marginTop: 60,
+              height: 60,
+              backgroundColor: this.state.bg
+            }}
+            {...this._gestureHandlers}
+          ></View>
+        </View>
+
+
+
+
+
+      </View >
     );
   }
 }
@@ -399,5 +600,16 @@ const styles = StyleSheet.create({
   activeButtonText: {
     fontSize: 20,
     color: "#B81F00"
-  }
+  },
+  scrollView: {
+    flex: 1,
+  },
+  box: {
+    width: 150,
+    height: 150,
+    alignSelf: 'center',
+    backgroundColor: 'plum',
+    margin: 10,
+    zIndex: 200,
+  },
 });

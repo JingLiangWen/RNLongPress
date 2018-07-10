@@ -1066,7 +1066,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "iPhone Developer: 嘉星 房 (PVX5CUAPGZ)";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = NO;
@@ -1088,6 +1088,7 @@
 					"-ObjC",
 					"-lc++",
 				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lanyou.scrmapp;
 				PRODUCT_NAME = RNLongPress;
 				PROVISIONING_PROFILE = "a5535966-f632-4de0-b4e5-9993fde51210";
 				PROVISIONING_PROFILE_SPECIFIER = "lan-you-dev";
@@ -1099,9 +1100,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: Dongfeng Motor Co., Ltd.";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = TN462CL4LQ;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/../node_modules/react-native-gesture-handler/ios/**",
@@ -1119,8 +1121,10 @@
 					"-ObjC",
 					"-lc++",
 				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lanyou.scrmapp;
 				PRODUCT_NAME = RNLongPress;
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE = "4f2a70a9-3409-4b2f-88dc-116da42f9c56";
+				PROVISIONING_PROFILE_SPECIFIER = com.lanyou.scrmapp_dis;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
