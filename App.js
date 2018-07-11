@@ -21,6 +21,7 @@ import Sound from 'react-native-sound';
 import { AudioRecorder, AudioUtils } from 'react-native-audio';
 
 import {
+  PanResponder,
   Dimensions,
   AppRegistry,
   StyleSheet,
@@ -134,7 +135,17 @@ export default class App extends Component<Props> {
     });
   }
 
-  isOutSide = ({ locationY }) => {
+  isOutSide = ({ locationY, pageX, pageY }) => {
+    const { btnPy, btnPx, btnH, btnW } = this.state
+    if (pageX >= btnPx && pageX <= (btnPx + btnW)
+      && pageY >= btnPy && pageY <= (btnPy + btnH)) {
+      console.log('在内部')
+      return false
+    } else {
+      console.log('在外部')
+      return true
+    }
+
     if (Platform.OS === 'ios') {
       return locationY < 0
     } else {
@@ -143,34 +154,117 @@ export default class App extends Component<Props> {
     }
 
   }
+  onResponderGrant = () => {
+    this.setState({ ...this.state, title: '正在录音', gestureState: GESTURE_STATE.active, bg: 'red' }, () => {
+      this._record()
+    })
+
+  }
+
+  onResponderMove = ({ nativeEvent }) => {
+
+    console.log(nativeEvent)
+    const { locationY, target } = nativeEvent
+    // if (target === this.mybutton._nativeTag) {
+    //   console.log('一样')
+    //   this.setState({ ...this.state, title: '正在录音', gestureState: GESTURE_STATE.active })
+    // } else {
+    //   console.log('不一样')
+    //   this.setState({ ...this.state, title: '可以取消录音', gestureState: GESTURE_STATE.cancel })
+    // }
+
+    if (!this.isOutSide(nativeEvent)) {
+      this.setState({ ...this.state, title: '正在录音', gestureState: GESTURE_STATE.active })
+    } else {
+      this.setState({ ...this.state, title: '可以取消录音', gestureState: GESTURE_STATE.cancel })
+    }
+  }
+
+  onResponderRelease = () => {
+
+
+    if (this.state.gestureState === GESTURE_STATE.cancel) {
+      // TODO 
+      console.log('删除录音')
+    }
+    this.setState({ ...this.state, bg: 'white', title: '录音结束', gestureState: GESTURE_STATE.end }, () => {
+      this._stop()
+    })
+
+
+  }
 
   componentWillMount() {
     this._gestureHandlers = {
       onStartShouldSetResponder: () => true,
       onMoveShouldSetResponder: () => true,
-      onResponderGrant: () => {
-        this.setState({ ...this.state, title: '正在录音', gestureState: GESTURE_STATE.active })
+      onResponderGrant: this.onResponderGrant.bind(this),
+      onResponderMove: this.onResponderMove.bind(this),
+      onResponderRelease: this.onResponderRelease.bind(this)
+    }
+
+    this._panResponder = PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        this._top = this.state.top
+        this._left = this.state.left
         this.setState({ bg: 'red' })
       },
-      onResponderMove: ({ nativeEvent }) => {
-        console.log(nativeEvent)
-        const { locationY } = nativeEvent
-        if (!this.isOutSide(nativeEvent)) {
-          this.setState({ ...this.state, title: '正在录音', gestureState: GESTURE_STATE.active })
-        } else {
-          this.setState({ ...this.state, title: '可以取消录音', gestureState: GESTURE_STATE.cancel })
-        }
+      onPanResponderMove: (evt, gs) => {
+        console.log(evt.nativeEvent)
+        console.log(gs.dx + ' ' + gs.dy)
+        this.setState({
+          top: this._top + gs.dy,
+          left: this._left + gs.dx
+        })
       },
-      onResponderRelease: () => {
-        this.setState({ bg: 'white' })
-        this.setState({ ...this.state, title: '录音结束', gestureState: GESTURE_STATE.end })
+      onPanResponderRelease: (evt, gs) => {
+        this.setState({
+          bg: 'white',
+          top: this._top + gs.dy,
+          left: this._left + gs.dx
+        })
       }
+    })
+  }
+
+  _onLayout(event) {
+    //使用大括号是为了限制let结构赋值得到的变量的作用域，因为接来下还要结构解构赋值一次
+    {
+      //获取根View的宽高，以及左上角的坐标值
+      let { x, y, width, height } = event.nativeEvent.layout;
+      console.log('通过onLayout得到的x：' + x);
+      console.log('通过onLayout得到的y：' + y);
+      console.log('通过onLayout得到的宽度：' + width);
+      console.log('通过onLayout得到的高度：' + height);
     }
+
+    //通过Dimensions API获取屏幕宽高
+    let { width, height } = Dimensions.get('window');
+    console.log('通过Dimensions得到的宽度：' + width);
+    console.log('通过Dimensions得到的高度：' + height);
+  }
+
+  measure = (fx, fy, width, height, px, py) => {
+    console.log('Component width is: ' + width)
+    console.log('Component height is: ' + height)
+    console.log('X offset to frame: ' + fx)
+    console.log('Y offset to frame: ' + fy)
+    console.log('X offset to page: ' + px)
+    console.log('Y offset to page: ' + py)
+
+    this.setState({ ...this.state, btnH: height, btnPx: px, btnPy: py, btnW: width }, () => {
+      console.log(this.state)
+    })
   }
 
   componentDidMount() {
+    setTimeout(() => this.mybutton.measure(this.measure.bind(this)), 0)
+
+
     this._checkPermission().then((hasPermission) => {
-      this.setState({ hasPermission });
+      this.setState({ ...this.state, hasPermission });
 
       if (!hasPermission) {
         Alert('没有录音权限？')
@@ -182,28 +276,28 @@ export default class App extends Component<Props> {
       AudioRecorder.onProgress = (data) => {
         const { currentMetering } = data
         if (0 < currentMetering <= 0.06) {
-          this.setState({ ...this.setState, source: this.state.source1 })
+          this.setState({ ...this.state, source: this.state.source1 })
         } else if (0.06 < currentMetering <= 0.13) {
-          this.setState({ ...this.setState, source: this.state.source2 })
+          this.setState({ ...this.state, source: this.state.source2 })
         } else if (0.13 < currentMetering <= 0.20) {
-          this.setState({ ...this.setState, source: this.state.source3 })
+          this.setState({ ...this.state, source: this.state.source3 })
         } else if (0.20 < currentMetering <= 0.27) {
-          this.setState({ ...this.setState, source: this.state.source4 })
+          this.setState({ ...this.state, source: this.state.source4 })
         } else if (0.27 < currentMetering <= 0.34) {
-          this.setState({ ...this.setState, source: this.state.source5 })
+          this.setState({ ...this.state, source: this.state.source5 })
         } else if (0.34 < currentMetering <= 0.41) {
-          this.setState({ ...this.setState, source: this.state.source6 })
+          this.setState({ ...this.state, source: this.state.source6 })
         } else if (0.41 < currentMetering <= 0.48) {
-          this.setState({ ...this.setState, source: this.state.source7 })
+          this.setState({ ...this.state, source: this.state.source7 })
         } else if (0.48 < currentMetering <= 0.55) {
-          this.setState({ ...this.setState, source: this.state.source8 })
+          this.setState({ ...this.state, source: this.state.source8 })
         } else
         /*if (0.55 < currentMetering <= 0.62)*/ {
-          this.setState({ ...this.setState, source: this.state.source9 })
+          this.setState({ ...this.state, source: this.state.source9 })
         }
         // else if (0.62 < currentMetering <= 0.69) {
         //   const source = require('./images/ic_record_ripple_4.png')
-        //   this.setState({ ...this.setState, source })
+        //   this.setState({ ...this.state, source })
         // } else if (0.69 < currentMetering <= 0.76) {
         //   [self.imageview setImage: [UIImage imageNamed:@"record_animate_11.png"]];
         // } else if (0.76 < currentMetering <= 0.83) {
@@ -214,7 +308,7 @@ export default class App extends Component<Props> {
         //   [self.imageview setImage: [UIImage imageNamed:@"record_animate_14.png"]];
         // }//图片根据音量来变化,大家知道就好
 
-        this.setState({ currentTime: Math.floor(data.currentTime) });
+        this.setState({ ...this.state, currentTime: Math.floor(data.currentTime) });
       };
 
       AudioRecorder.onFinished = (data) => {
@@ -275,7 +369,7 @@ export default class App extends Component<Props> {
 
     try {
       const filePath = await AudioRecorder.pauseRecording();
-      this.setState({ paused: true });
+      this.setState({ ...this.state, paused: true });
     } catch (error) {
       console.error(error);
     }
@@ -289,7 +383,7 @@ export default class App extends Component<Props> {
 
     try {
       await AudioRecorder.resumeRecording();
-      this.setState({ paused: false });
+      this.setState({ ...this.state, paused: false });
     } catch (error) {
       console.error(error);
     }
@@ -301,7 +395,7 @@ export default class App extends Component<Props> {
       return;
     }
 
-    this.setState({ stoppedRecording: true, recording: false, paused: false });
+    this.setState({ ...this.state, stoppedRecording: true, recording: false, paused: false });
 
     try {
       const filePath = await AudioRecorder.stopRecording();
@@ -356,7 +450,7 @@ export default class App extends Component<Props> {
       this.prepareRecordingPath(this.state.audioPath);
     }
 
-    this.setState({ recording: true, paused: false });
+    this.setState({ ...this.state, recording: true, paused: false });
 
     try {
       const filePath = await AudioRecorder.startRecording();
@@ -366,7 +460,7 @@ export default class App extends Component<Props> {
   }
 
   _finishRecording(didSucceed, filePath) {
-    this.setState({ finished: didSucceed });
+    this.setState({ ...this.state, finished: didSucceed });
     console.log(`Finished recording of duration ${this.state.currentTime} seconds at path: ${filePath}`);
   }
 
@@ -518,7 +612,7 @@ export default class App extends Component<Props> {
         </PanGestureHandler> */}
 
         {/**ios没问题*/}
-        <LongPressGestureHandler
+        {/* <LongPressGestureHandler
           enabled
           minDurationMs={0}
           maxDist={-1}
@@ -533,16 +627,19 @@ export default class App extends Component<Props> {
           }}
         >
           <View style={{ height: 60, backgroundColor: 'blue' }}></View>
-        </LongPressGestureHandler>
+        </LongPressGestureHandler> */}
 
         <View style={{ marginTop: 'auto' }}>
           <View
+            onLayout={this._onLayout}
+            ref={(ref) => this.mybutton = ref}
             style={{
               marginTop: 60,
               height: 60,
               backgroundColor: this.state.bg
             }}
             {...this._gestureHandlers}
+          // {...this._panResponder.panHandlers}
           ></View>
         </View>
 
